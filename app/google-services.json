@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "533182446883",
+    "project_id": "prueba-15ccc",
+    "storage_bucket": "prueba-15ccc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:533182446883:android:06eb8afb608a4b73e86096",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQxWgu7yx63CISUkiS8T9Dzlfc8pJZzjk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:533182446883:android:a7ee07188fab19c0e86096",
+        "android_client_info": {
+          "package_name": "com.xacarana.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQxWgu7yx63CISUkiS8T9Dzlfc8pJZzjk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

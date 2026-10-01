@@ -1,10 +1,12 @@
 package com.example.myapplication.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +42,19 @@ import com.example.myapplication.data.GameMode
 import com.example.myapplication.data.PlayerManager
 import com.example.myapplication.data.ScoreRepository
 import com.example.myapplication.data.WordRepository
+import com.example.myapplication.data.FirestoreCloudWordRepository
+import com.example.myapplication.ui.theme.MyApplicationTheme
+import androidx.compose.ui.tooling.preview.Preview
+import android.graphics.BitmapFactory
+import android.graphics.Rect
+import android.graphics.RectF
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.myapplication.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,18 +63,59 @@ fun GameScreen(
     customWord: String? = null,
     onBack: () -> Unit
 ) {
+    var cloudHint by rememberSaveable { mutableStateOf<String?>(null) }
+    var cloudError by rememberSaveable { mutableStateOf(false) }
     var currentWord by rememberSaveable(category, customWord) {
-        mutableStateOf(customWord?.uppercase() ?: WordRepository.getRandomWord(category))
+        mutableStateOf(customWord?.uppercase() ?: if (category == "Cloud") "LOADING..." else WordRepository.getRandomWord(category))
     }
     var guessedLetters by remember { mutableStateOf(setOf<Char>()) }
     var livesLeft by remember { mutableIntStateOf(6) }
     var hasRecordedScore by remember { mutableStateOf(false) }
 
+    LaunchedEffect(category) {
+        if (category == "Cloud" && customWord == null) {
+            cloudError = false
+            FirestoreCloudWordRepository.fetchRandomCloudWord(
+                onResult = { cloudWord ->
+                    if (cloudWord != null) {
+                        currentWord = cloudWord.word
+                        cloudHint = cloudWord.category
+                        cloudError = false
+                    } else {
+                        cloudError = true
+                    }
+                },
+                onError = {
+                    cloudError = true
+                }
+            )
+        }
+    }
+
     fun startNextWord() {
         guessedLetters = emptySet()
         livesLeft = 6
         hasRecordedScore = false
-        currentWord = customWord?.uppercase() ?: WordRepository.getRandomWord(category)
+        if (category == "Cloud") {
+            currentWord = "LOADING..."
+            cloudError = false
+            FirestoreCloudWordRepository.fetchRandomCloudWord(
+                onResult = { cloudWord ->
+                    if (cloudWord != null) {
+                        currentWord = cloudWord.word
+                        cloudHint = cloudWord.category
+                        cloudError = false
+                    } else {
+                        cloudError = true
+                    }
+                },
+                onError = {
+                    cloudError = true
+                }
+            )
+        } else {
+            currentWord = customWord?.uppercase() ?: WordRepository.getRandomWord(category)
+        }
     }
 
     val isWordGuessed = currentWord.isNotEmpty() && currentWord.all { it in guessedLetters }
@@ -104,19 +160,66 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Lives & Visual
-            Card(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                if (cloudError) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "⚠️ No internet connection or cloud words found in Firestore.",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(onClick = onBack) {
+                                Text("Go Back")
+                            }
+                        }
+                    }
+                } else if (cloudHint != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "💡 Hint Category: $cloudHint",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+
+                // Lives & Visual
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                     Text(
                         text = "Player: ${PlayerManager.playerName.ifBlank { "Player 1" }}",
                         fontSize = 14.sp,
@@ -130,20 +233,15 @@ fun GameScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = when (livesLeft) {
-                            6 -> "  +---+\n  |   |\n      |\n      |\n      |\n========="
-                            5 -> "  +---+\n  |   |\n  O   |\n      |\n      |\n========="
-                            4 -> "  +---+\n  |   |\n  O   |\n  |   |\n      |\n========="
-                            3 -> "  +---+\n  |   |\n  O   |\n /|   |\n      |\n========="
-                            2 -> "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n========="
-                            1 -> "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n========="
-                            else -> "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n========="
-                        },
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp
+                    val mistakes = (6 - livesLeft).coerceIn(0, 6)
+                    SpriteSheetView(
+                        drawableResId = R.drawable.pasos_horca,
+                        frameIndex = mistakes,
+                        totalFrames = 7,
+                        modifier = Modifier.height(160.dp)
                     )
                 }
+              }
             }
 
             // Word Display
@@ -238,6 +336,46 @@ fun GameScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GameScreenPreview() {
+    MyApplicationTheme {
+        GameScreen(
+            category = "Animals",
+            onBack = {}
+        )
+    }
+}
+
+@Composable
+fun SpriteSheetView(
+    drawableResId: Int,
+    frameIndex: Int,
+    totalFrames: Int = 7,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val bitmap = remember(drawableResId) {
+        BitmapFactory.decodeResource(context.resources, drawableResId)
+    }
+
+    val frameWidth = remember(bitmap) { if (bitmap != null) bitmap.width / totalFrames else 1 }
+    val frameHeight = remember(bitmap) { if (bitmap != null) bitmap.height else 1 }
+    val aspectRatio = if (frameHeight > 0) frameWidth.toFloat() / frameHeight.toFloat() else 1f
+
+    Canvas(modifier = modifier.aspectRatio(aspectRatio)) {
+        if (bitmap != null) {
+            val currentFrame = frameIndex.coerceIn(0, totalFrames - 1)
+            val srcX = currentFrame * frameWidth
+
+            val srcRect = Rect(srcX, 0, srcX + frameWidth, frameHeight)
+            val dstRect = RectF(0f, 0f, size.width, size.height)
+
+            drawContext.canvas.nativeCanvas.drawBitmap(bitmap, srcRect, dstRect, null)
         }
     }
 }

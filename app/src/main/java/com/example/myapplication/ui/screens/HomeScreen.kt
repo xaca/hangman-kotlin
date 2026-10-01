@@ -27,9 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication.data.PlayerManager
+import com.example.myapplication.ui.theme.MyApplicationTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,5 +178,19 @@ fun HomeScreen(
                 Text("ℹ️ CREDITS", fontSize = 16.sp)
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    MyApplicationTheme {
+        HomeScreen(
+            onNavigateToGameModeSelection = {},
+            onNavigateToInstructions = {},
+            onNavigateToScore = {},
+            onNavigateToConfig = {},
+            onNavigateToCredits = {}
+        )
     }
 }
